@@ -205,47 +205,47 @@ class OrderController extends Controller
         }
     }
 
-    public function updateTransactionStatus(Request $request)
-    {
-        $validator = Validator::make($request->json()->all(), [
-            'data' => 'required'
-        ]);
-        if ($validator->fails()) {
-            return Helper::getValidationReponse($validator->errors()->first());
-        }
-        $data = $validator->validated();
-        $data = json_decode($this->decryptData($data['data']), true);
-        // print_r($data);die;
-        if (strtoupper($data["status"]) === "SUCCESS")
-        {
-            $transaction = Transaction::where('merchant_txn_id', $data['merchantid'])->first();
-            if ($transaction["status"] === "complete") {
-                return;
-            }
+    // public function updateTransactionStatus(Request $request)
+    // {
+    //     $validator = Validator::make($request->json()->all(), [
+    //         'data' => 'required'
+    //     ]);
+    //     if ($validator->fails()) {
+    //         return Helper::getValidationReponse($validator->errors()->first());
+    //     }
+    //     $data = $validator->validated();
+    //     $data = json_decode($this->decryptData($data['data']), true);
+    //     // print_r($data);die;
+    //     if (strtoupper($data["status"]) === "SUCCESS")
+    //     {
+    //         $transaction = Transaction::where('merchant_txn_id', $data['merchantid'])->first();
+    //         if ($transaction["status"] === "complete") {
+    //             return;
+    //         }
             
-            //update balance
-            ClientAccount::where('id', $clientAccount['id'])->update($updateArray);
-            $updateArray = [
-                "status" => "complete"
-            ];
-            //update transaction
-            if (isset($data["utr"])) {
-                $updateArray["utr"] = $data["utr"];
-            }
-            Transaction::where('merchant_txn_id', $data['merchantid'])->update($updateArray);
-            $transaction = Transaction::where('merchant_txn_id', $data['merchantid'])->first();
-            $client = Client::where('id', $transaction["reciever_id"])->first();
-            if (filter_var($client->email, FILTER_VALIDATE_EMAIL)) {
-                Mail::to($client["email"])->send(new DepositMail(["transaction" => $transaction]));
-            }
+    //         //update balance
+    //         ClientAccount::where('id', $clientAccount['id'])->update($updateArray);
+    //         $updateArray = [
+    //             "status" => "complete"
+    //         ];
+    //         //update transaction
+    //         if (isset($data["utr"])) {
+    //             $updateArray["utr"] = $data["utr"];
+    //         }
+    //         Transaction::where('merchant_txn_id', $data['merchantid'])->update($updateArray);
+    //         $transaction = Transaction::where('merchant_txn_id', $data['merchantid'])->first();
+    //         $client = Client::where('id', $transaction["reciever_id"])->first();
+    //         if (filter_var($client->email, FILTER_VALIDATE_EMAIL)) {
+    //             Mail::to($client["email"])->send(new DepositMail(["transaction" => $transaction]));
+    //         }
 
-        } else {
-            $updateArray = [
-                "status" => 'cancel'
-            ];
-            Transaction::where('merchant_txn_id', $data['merchantid'])->update($updateArray);
-        }
-    }
+    //     } else {
+    //         $updateArray = [
+    //             "status" => 'cancel'
+    //         ];
+    //         Transaction::where('merchant_txn_id', $data['merchantid'])->update($updateArray);
+    //     }
+    // }
 
     public function generatePaymentOrder($dataArray, $country = "india")
     {
@@ -279,31 +279,31 @@ class OrderController extends Controller
         $fxResponseData = $this->generatePaymentOrder($reqData, $country);
 
         // Check if initial API call failed
-        if ($fxResponseData instanceof \Illuminate\Http\JsonResponse) {
-            $fxResponseData = $fxResponseData->getData(true); // true = return as array
-        }
+        // if ($fxResponseData instanceof \Illuminate\Http\JsonResponse) {
+        //     $fxResponseData = $fxResponseData->getData(true); // true = return as array
+        // }
         if (!is_array($fxResponseData) || ($fxResponseData['status'] ?? '') === "FAILED") 
         {
             Order::where('order_number', $orderId)->update(['status' => 'cancel']);
-            return response()->json([
-                'status' => 'FAILED',
-                'message' => 'Payment gateway error.',
-                'data' => $fxResponseData
-            ], 400);
+            return [
+                        'status' => 'FAILED',
+                        'message' => 'Payment gateway error.',
+                        'data' => $fxResponseData
+                    ];
         }
 
         // Decrypt and decode payment gateway response
         $decrypted = $this->decryptData($fxResponseData['data'], $country);
         if (!$decrypted) {
             Order::where('order_number', $orderId)->update(['status' => 'cancel']);
-            return response()->json([
+            return [
                 'status' => 'FAILED',
                 'message' => 'Decryption failed.'
-            ], 400);
+            ];
         }
 
         $fxResponseData = json_decode($decrypted, true);
-        print_r($fxResponseData);die;
+       // print_r($fxResponseData);die;
         if (isset($fxResponseData["url"], $fxResponseData["orderid"])) {
             Order::where('order_number', $orderId)->update([
                 'gateway_order_id' => $fxResponseData["orderid"]
@@ -311,10 +311,11 @@ class OrderController extends Controller
             return redirect()->away($fxResponseData['url']);
         } else {
             Order::where('order_number', $orderId)->update(['status' => 'cancel']);
-            return response()->json([
-                'status' => 'FAILED',
-                'message' => 'Invalid response from gateway.'
-            ], 400);
+            // return [
+            //     'status' => 'FAILED',
+            //     'message' => 'Invalid response from gateway.'
+            // ];
+           return $fxResponseData;
         }
     }
 
@@ -338,7 +339,7 @@ class OrderController extends Controller
 
         $order                      =   new Order();
         $order_data                 =   $request->all();
-        $order_data['order_number'] =   'ORD-'.strtoupper(Str::random(10));
+        $order_data['order_number'] =   'ORD'.strtoupper(Str::random(10));
         $order_data['user_id']      =   null;
         $order_data['shipping_id']  =   $request->shipping;
         //$shipping                 =   Shipping::where('id',$order_data['shipping_id'])->pluck('price');
@@ -404,17 +405,16 @@ class OrderController extends Controller
                 }
             }
             $order->user_order_id  = $User_order_id;
+            $order->order_number   = $orderNumber.'ID'.$order->id;
             $order->payment_status = "pending";
             $order->payment_method =  $request->payment_method;
+
             $order->update();
         }
         if ($request->payment_method == 'online') {
+
             $statusArr = $this->makePayment($orderNumber, $order_data['total_amount']);
-        
-            if ($statusArr instanceof \Illuminate\Http\JsonResponse) {
-                $statusArr = $statusArr->getData(true); // Convert to associative array
-            }
-        
+
             if (($statusArr['status'] ?? '') == 'cancel') {
                 Order::where('order_number', $orderNumber)->update(["payment_status" => "cancel"]);
                 return redirect()->back()->with('status', $statusArr);
