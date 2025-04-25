@@ -102,10 +102,6 @@
                     <div class="col-12">
                     <?php 
                         $data = (session('status') !== null)? session('status') : [];
-                        // if(@$data['url'])
-                        // {
-                        //     header("Location:".$data['url']);
-                        // }
                      ?>
                     @if(@$data[status] == 'FAILED')
                         <span class="bg-danger d-block text-white text-center p-2 m-2">Your order not completed due to payment failed ({{ $data['message'] }}).</span>
@@ -243,7 +239,7 @@
                                             @endif
                                             <div class="row">
                                                 <div class="col-lg-12 col-md-12 col-12 cart">
-                                                    <label>Emirates<span>*</span></label><br>
+                                                    <label>Shipping Area<span>*</span></label><br>
                                                     <select name="shipping" class="" id="shipping" style="width: 100%">
                                                         <option value="">Select your address</option>
                                                         @foreach(Helper::shipping() as $shipping)

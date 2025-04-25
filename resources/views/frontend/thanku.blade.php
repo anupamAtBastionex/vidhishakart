@@ -17,10 +17,20 @@
 		</div>
 	</div>
 	<!-- End Breadcrumbs -->
+	@if(request()->query('status') && strtolower(request()->query('status')) === 'failed')
+		<span class="bg-danger d-block text-white text-center p-2 m-2">
+			Your order was not completed due to payment failure ({{ request()->query('orderid') }}).
+		</span>
+	@endif
+
+	@if(request()->query('status') && strtolower(request()->query('status')) === 'success')
+		<span class="bg-success d-block text-white text-center p-2 m-2">
+			Your product order has been placed. Thank you for shopping with us. We will contact you shortly.
+		</span>
+	@endif
+
 <?php
-//$arr = Array ( [product_image] => http://localhost/qrmart/public/storage/app/public/photos/product/FE_65ab6727702c7_Headset.jpg [product_title] => Electronic New Machine [shipping_cost] => 30 [quantity] => 180: 2 pairs [total_price] => 180 );
-//print_r(session('order'));
-$data = (session('order') !== null)? session('order') : [];
+	$data = (session('order') !== null)? session('order') : [];
 ?>
 @if(!empty($data))
 	<!-- Shopping Cart -->
