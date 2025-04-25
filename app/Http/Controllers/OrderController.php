@@ -303,7 +303,7 @@ class OrderController extends Controller
         }
 
         $fxResponseData = json_decode($decrypted, true);
-
+        print_r($fxResponseData);die;
         if (isset($fxResponseData["url"], $fxResponseData["orderid"])) {
             Order::where('order_number', $orderId)->update([
                 'gateway_order_id' => $fxResponseData["orderid"]
@@ -408,19 +408,21 @@ class OrderController extends Controller
             $order->payment_method =  $request->payment_method;
             $order->update();
         }
-        if($request->payment_method == 'online')
-        {
+        if ($request->payment_method == 'online') {
             $statusArr = $this->makePayment($orderNumber, $order_data['total_amount']);
-            // print_r($statusArr);die;
-            if($statusArr['status'] == 'cancel')
-            {
-                    Order::where('order_number', $orderNumber)->update(["payment_status"=>"cancel"]);
-                    return redirect()->back()->with('status',$statusArr);
+        
+            if ($statusArr instanceof \Illuminate\Http\JsonResponse) {
+                $statusArr = $statusArr->getData(true); // Convert to associative array
             }
-            if($statusArr['status'] == 'FAILED' && empty($statusArr['success']))
-            {
-                    Order::where('order_number', $orderNumber)->update(["payment_status"=>"cancel"]);
-                    return redirect()->back()->with('status',$statusArr);
+        
+            if (($statusArr['status'] ?? '') == 'cancel') {
+                Order::where('order_number', $orderNumber)->update(["payment_status" => "cancel"]);
+                return redirect()->back()->with('status', $statusArr);
+            }
+        
+            if (($statusArr['status'] ?? '') == 'FAILED' && empty($statusArr['success'])) {
+                Order::where('order_number', $orderNumber)->update(["payment_status" => "cancel"]);
+                return redirect()->back()->with('status', $statusArr);
             }
         }
             
