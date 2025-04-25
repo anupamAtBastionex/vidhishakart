@@ -19,6 +19,12 @@ use Carbon\Carbon;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Cache;
 use Http;
+use App\Mail\OrderNotification;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
+
+
+
 class OrderController extends Controller
 {
 
@@ -236,7 +242,7 @@ class OrderController extends Controller
     //         $transaction = Transaction::where('merchant_txn_id', $data['merchantid'])->first();
     //         $client = Client::where('id', $transaction["reciever_id"])->first();
     //         if (filter_var($client->email, FILTER_VALIDATE_EMAIL)) {
-    //             Mail::to($client["email"])->send(new DepositMail(["transaction" => $transaction]));
+                 //Mail::to($client["email"])->send(new DepositMail(["transaction" => $transaction]));
     //         }
 
     //     } else {
@@ -324,14 +330,11 @@ class OrderController extends Controller
     {
         $this->validate($request, [
                                         'first_name'    =>'string|required',
-                                    //  'last_name'     =>'string|required',
                                         'phone'         =>'required',
                                         'email'         =>'email|nullable',
                                         'address1'      =>'string|required',
                                         'shipping'      =>'numeric|required',
                                         'quantity'      =>'string|required',
-                                       // 'size'          =>'string|nullable',
-                                        //'color'         =>'string|nullable'
                                         'payment_method'=>'string|required'
                                     ]);
 
@@ -411,8 +414,8 @@ class OrderController extends Controller
 
             $order->update();
         }
-        if ($request->payment_method == 'online') {
-
+       /* if ($request->payment_method == 'online') 
+        {
             $statusArr = $this->makePayment($orderNumber, $order_data['total_amount']);
 
             if (($statusArr['status'] ?? '') == 'cancel') {
@@ -426,9 +429,13 @@ class OrderController extends Controller
             }
             if (!empty($statusArr['success']) && !empty($statusArr['url'])) {
                 // Order::where('order_number', $orderNumber)->update(["payment_status" => "cancel"]);
+
                 return redirect()->back()->with('status', $statusArr);
             }
         }
+
+        Mail::to($adminEmail)->send(new OrderNotification($order, $product, $thankData));*/
+
             
         // Calculate the remaining time until midnight
         $now            =   strtotime(date('Y-m-d H:i:s'));
@@ -463,13 +470,41 @@ class OrderController extends Controller
                                 'total_price'   =>  $order_data['sub_total'],
                                 'vat'           =>  $product->vat
                             );
-        $matchedRecords = Order::select('orders.*','products.vat', 'products.delivery_charge', 'products.photo')
+            $matchedRecords = Order::select('orders.*','products.vat', 'products.delivery_charge', 'products.photo')
                                     ->join('products', 'products.id','=','orders.product_id')
                                     ->where('orders.id', '<>', $order->id)
                                     ->where('orders.user_order_id', $User_order_id)
                                     // ->whereDate('orders.created_at', date('Y-m-d'))
                                     // ->where('orders.phone', $order_data['phone'])
                                     ->get();
+            try {
+                Mail::to("info.vidhisha@gmail.com")->send(new OrderNotification($order, $product, $thankData));
+            } catch (\Exception $e) {
+                \Log::error('Failed to send order notification email: '.$e->getMessage());
+                // Continue with the order process even if email fails
+            }
+            
+            if ($request->payment_method == 'online') 
+            {
+                $statusArr = $this->makePayment($orderNumber, $order_data['total_amount']);
+    
+                if (($statusArr['status'] ?? '') == 'cancel') {
+                    Order::where('order_number', $orderNumber)->update(["payment_status" => "cancel"]);
+                    return redirect()->back()->with('status', $statusArr);
+                }
+            
+                if (($statusArr['status'] ?? '') == 'FAILED' && empty($statusArr['success'])) {
+                    Order::where('order_number', $orderNumber)->update(["payment_status" => "cancel"]);
+                    return redirect()->back()->with('status', $statusArr);
+                }
+                if (!empty($statusArr['success']) && !empty($statusArr['url'])) {
+                    // Order::where('order_number', $orderNumber)->update(["payment_status" => "cancel"]);
+    
+                    return redirect()->back()->with('status', $statusArr);
+                }
+            }
+    
+            
 
         request()->session()->flash('success','Your product order has been placed. Thank you for shopping with us.');
         return redirect('thanku')->with('order',$thankData)->with('todayOrder', $matchedRecords);
