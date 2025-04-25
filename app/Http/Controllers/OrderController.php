@@ -303,7 +303,7 @@ class OrderController extends Controller
         }
 
         $fxResponseData = json_decode($decrypted, true);
-       // print_r($fxResponseData);die;
+        print_r($fxResponseData);die;
         if (isset($fxResponseData["url"], $fxResponseData["orderid"])) {
             Order::where('order_number', $orderId)->update([
                 'gateway_order_id' => $fxResponseData["orderid"]
