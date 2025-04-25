@@ -17,13 +17,13 @@
 		</div>
 	</div>
 	<!-- End Breadcrumbs -->
-	@if(request()->query('status') && strtolower(request()->query('status')) === 'failed')
+	@if(request()->query('status') && strtoupper(request()->query('status')) == 'FAILED')
 		<span class="bg-danger d-block text-white text-center p-2 m-2">
 			Your order was not completed due to payment failure ({{ request()->query('orderid') }}).
 		</span>
 	@endif
 
-	@if(request()->query('status') && strtolower(request()->query('status')) === 'success')
+	@if(request()->query('status') && strtoupper(request()->query('status')) == 'SUCCESS')
 		<span class="bg-success d-block text-white text-center p-2 m-2">
 			Your product order has been placed. Thank you for shopping with us. We will contact you shortly.
 		</span>
