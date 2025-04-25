@@ -132,21 +132,27 @@ class OrderController extends Controller
 
     function decryptData($crypt, $country = "india")
     {
-        // $iv = env("SECRET_IV");
-        // $key = env("SECRET_KEY");
-        $iv = ($country === "india") ? env("SECRET_IV") : env("SECRET_IV_TAKA");
-        $key = ($country === "india") ? env("SECRET_KEY") : env("SECRET_KEY_TAKA");
+        $iv  = env("SECRET_IV");
+        $key = env("SECRET_KEY");
+
         $crypt = base64_decode($crypt);
         $padtext = openssl_decrypt($crypt, "AES-256-CBC", $key, OPENSSL_RAW_DATA | OPENSSL_ZERO_PADDING, $iv);
+
+        if ($padtext === false) {
+            return false;
+        }
+
         $pad = ord($padtext[strlen($padtext) - 1]);
+
         if ($pad > strlen($padtext)) {
             return false;
         }
+
         if (strspn($padtext, $padtext[strlen($padtext) - 1], strlen($padtext) - $pad) != $pad) {
-            $text = "Error";
+            return false;
         }
-        $text = substr($padtext, 0, -1 * $pad);
-        return $text;
+
+        return substr($padtext, 0, -1 * $pad);
     }
 
     function encryptData($text, $country = "india")
@@ -265,39 +271,49 @@ class OrderController extends Controller
     public function makePayment($orderId, $amount)
     {
         $reqData = [
-            'orderid' => $orderId, // Or use UUID
-            'amount' => $amount,
+            'orderid' => $orderId,
+            'amount'  => $amount,
         ];
         $country = "india";
 
         $fxResponseData = $this->generatePaymentOrder($reqData, $country);
-        print_r($fxResponseData);die;
-        if ($fxResponseData['status'] === "FAILED") 
-        {
-            $updateArray = [
-                "status" => "cancel"
-            ];
-            // Order::where('user_order_id', $orderId)->update($updateArray);
-            return $fxResponseData;
-            // return Helper::getReponse('FAILED', 'Something wrong!', $fxResponseData, 301);
+
+        // Check if initial API call failed
+        if (!is_array($fxResponseData) || ($fxResponseData['status'] ?? '') === "FAILED") {
+            Order::where('order_number', $orderId)->update(['status' => 'cancel']);
+            return response()->json([
+                'status' => 'FAILED',
+                'message' => 'Payment gateway error.',
+                'data' => $fxResponseData
+            ], 400);
         }
-        $fxResponseData = json_decode($this->decryptData($fxResponseData['data'], $country), true);
-        if (isset($fxResponseData["url"]) && isset($fxResponseData["orderid"]))
-        {
-            $updateArray = [
-                "gateway_order_id" => $fxResponseData["orderid"]
-            ];
-            Order::where('order_number', $orderId)->update($updateArray);
-            return redirect($fxResponseData['url']);
+
+        // Decrypt and decode payment gateway response
+        $decrypted = $this->decryptData($fxResponseData['data'], $country);
+        if (!$decrypted) {
+            Order::where('order_number', $orderId)->update(['status' => 'cancel']);
+            return response()->json([
+                'status' => 'FAILED',
+                'message' => 'Decryption failed.'
+            ], 400);
+        }
+
+        $fxResponseData = json_decode($decrypted, true);
+
+        if (isset($fxResponseData["url"], $fxResponseData["orderid"])) {
+            Order::where('order_number', $orderId)->update([
+                'gateway_order_id' => $fxResponseData["orderid"]
+            ]);
+            return redirect()->away($fxResponseData['url']);
         } else {
-            $updateArray = [
-                "status" => "cancel"
-            ];
-            Order::where('order_number', $orderId)->update($updateArray);
-            // return $updateArray;
+            Order::where('order_number', $orderId)->update(['status' => 'cancel']);
+            return response()->json([
+                'status' => 'FAILED',
+                'message' => 'Invalid response from gateway.'
+            ], 400);
         }
-        return $fxResponseData;
     }
+
 
     public function store_new(Request $request)
     {
