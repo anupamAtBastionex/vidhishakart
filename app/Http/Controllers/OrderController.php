@@ -279,7 +279,11 @@ class OrderController extends Controller
         $fxResponseData = $this->generatePaymentOrder($reqData, $country);
 
         // Check if initial API call failed
-        if (!is_array($fxResponseData) || ($fxResponseData['status'] ?? '') === "FAILED") {
+        if ($fxResponseData instanceof \Illuminate\Http\JsonResponse) {
+            $fxResponseData = $fxResponseData->getData(true); // true = return as array
+        }
+        if (!is_array($fxResponseData) || ($fxResponseData['status'] ?? '') === "FAILED") 
+        {
             Order::where('order_number', $orderId)->update(['status' => 'cancel']);
             return response()->json([
                 'status' => 'FAILED',
