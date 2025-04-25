@@ -424,7 +424,7 @@ class OrderController extends Controller
                 Order::where('order_number', $orderNumber)->update(["payment_status" => "cancel"]);
                 return redirect()->back()->with('status', $statusArr);
             }
-            if (empty($statusArr['success']) && !empty($statusArr['url'])) {
+            if (!empty($statusArr['success']) && !empty($statusArr['url'])) {
                 // Order::where('order_number', $orderNumber)->update(["payment_status" => "cancel"]);
                 return redirect()->back()->with('status', $statusArr);
             }
