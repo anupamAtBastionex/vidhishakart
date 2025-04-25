@@ -69,6 +69,11 @@
         }
 
     </style>
+        @if(session('status.url'))
+        <script>
+            window.location.href = "{{ session('status.url') }}";
+        </script>
+    @endif
 @endsection
 @section('title', env('APP_NAME'). ' | ' . $product_detail->title)
 @section('main-content')
@@ -97,7 +102,10 @@
                     <div class="col-12">
                     <?php 
                         $data = (session('status') !== null)? session('status') : [];
-                        // print_r($data);
+                        // if(@$data['url'])
+                        // {
+                        //     header("Location:".$data['url']);
+                        // }
                      ?>
                     @if(@$data[status] == 'FAILED')
                         <span class="bg-danger d-block text-white text-center p-2 m-2">Your order not completed due to payment failed ({{ $data['message'] }}).</span>

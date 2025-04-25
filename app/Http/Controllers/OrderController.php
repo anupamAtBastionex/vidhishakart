@@ -303,12 +303,12 @@ class OrderController extends Controller
         }
 
         $fxResponseData = json_decode($decrypted, true);
-        print_r($fxResponseData);die;
+        // print_r($fxResponseData);die;
         if (isset($fxResponseData["url"], $fxResponseData["orderid"])) {
             Order::where('order_number', $orderId)->update([
                 'gateway_order_id' => $fxResponseData["orderid"]
             ]);
-            return redirect()->away($fxResponseData['url']);
+            return $fxResponseData; //$redirect()->away($fxResponseData['url']);
         } else {
             Order::where('order_number', $orderId)->update(['status' => 'cancel']);
             // return [
@@ -422,6 +422,10 @@ class OrderController extends Controller
         
             if (($statusArr['status'] ?? '') == 'FAILED' && empty($statusArr['success'])) {
                 Order::where('order_number', $orderNumber)->update(["payment_status" => "cancel"]);
+                return redirect()->back()->with('status', $statusArr);
+            }
+            if (empty($statusArr['success']) && !empty($statusArr['url'])) {
+                // Order::where('order_number', $orderNumber)->update(["payment_status" => "cancel"]);
                 return redirect()->back()->with('status', $statusArr);
             }
         }
