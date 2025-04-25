@@ -271,7 +271,7 @@ class OrderController extends Controller
         $country = "india";
 
         $fxResponseData = $this->generatePaymentOrder($reqData, $country);
-        //  print_r($fxResponseData);die;
+        print_r($fxResponseData);die;
         if ($fxResponseData['status'] === "FAILED") 
         {
             $updateArray = [
